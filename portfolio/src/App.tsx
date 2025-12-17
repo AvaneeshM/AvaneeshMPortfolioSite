@@ -338,7 +338,7 @@ function App() {
               <p className="muted">{resume.about.goals}</p>
             </div> */}
             <div className="card">
-              <h3 className="cardTitle">Bio</h3>
+              <h3 className="cardTitle">Statement</h3>
               <p className="muted">{resume.about.bio}</p>
             </div>
           </div>
