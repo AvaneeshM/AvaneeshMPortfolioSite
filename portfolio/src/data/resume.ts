@@ -1,40 +1,40 @@
 export type Resume = {
   basics: {
-    name: string
-    title: string
-    location: string
-    email: string
-    availability: string
-    summary: string
+    name: string;
+    title: string;
+    location: string;
+    email: string;
+    availability: string;
+    summary: string;
     links: {
-      website?: string
-      github?: string
-      linkedin?: string
-      resumeUrl: string
-    }
-  }
-  highlights: string[]
+      website?: string;
+      github?: string;
+      linkedin?: string;
+      resumeUrl: string;
+    };
+  };
+  highlights: string[];
   about: {
-    tagline: string
-    bio: string
-    goals: string
-  }
-  skills: Array<{ category: string; items: string[] }>
+    tagline: string;
+    bio: string;
+    goals: string;
+  };
+  skills: Array<{ category: string; items: string[] }>;
   projects: Array<{
-    name: string
-    description: string
-    tech: string[]
-    links: { demo?: string; repo?: string }
-  }>
+    name: string;
+    description: string;
+    tech: string[];
+    links: { demo?: string; repo?: string };
+  }>;
   experience: Array<{
-    company: string
-    role: string
-    location: string
-    dates: string
-    highlights: string[]
-    tech: string[]
-  }>
-}
+    company: string;
+    role: string;
+    location: string;
+    dates: string;
+    highlights: string[];
+    tech: string[];
+  }>;
+};
 
 /**
  * Replace the placeholder content below with your real resume.
@@ -42,80 +42,162 @@ export type Resume = {
  */
 export const resume: Resume = {
   basics: {
-    name: 'Your Name',
-    title: 'Software Engineer • Frontend / Full‑Stack',
-    location: 'City, Country',
-    email: 'you@example.com',
-    availability: 'Open to opportunities',
+    name: "Avaneesh Madaram",
+    title: "Machine Learning Engineer • Data Scientist • Full-Stack Developer",
+    location: "Toronto, Ontario",
+    email: "madaramavaneesh@gmail.com",
+    availability: "Open to opportunities",
     summary:
-      'I build fast, accessible web apps and ship features end-to-end. I care about product quality, clean architecture, and measurable impact.',
+      "Master’s candidate in Data Science & AI with strong foundations in full-stack development. Experienced in building predictive models, optimizing data pipelines, and shipping scalable web apps.",
     links: {
-      website: 'https://your-site.com',
-      github: 'https://github.com/your-handle',
-      linkedin: 'https://linkedin.com/in/your-handle',
-      resumeUrl: 'https://example.com/your-resume.pdf',
+      github: "https://github.com/avaneesh-madaram",
+      linkedin: "https://linkedin.com/in/avaneesh-madaram",
+      resumeUrl: "https://example.com/AvaneeshResume.pdf",
     },
   },
   highlights: [
-    '5+ years building production web apps',
-    'React + TypeScript specialist',
-    'Performance, accessibility, and design systems',
-    'API integration + backend fundamentals',
+    "Masters in Data Science and AI (University of Waterloo)",
+    "Bachelor of Science in Software Engineering (University of Ottawa)",
   ],
   about: {
-    tagline: 'A product-minded engineer who likes shipping.',
-    bio: `I enjoy turning ambiguous problems into simple, delightful experiences. I’ve worked across frontend, backend, and infrastructure enough to move quickly and collaborate well.`,
-    goals: `I’m looking for a team where I can own features, mentor/learn, and build products that customers love.`,
+    tagline: "",
+    bio: `I am a software engineer and data scientist passionate about building intelligent systems. With a background in Applied Science and currently pursuing a Master's in Data Science at UWaterloo, I enjoy solving complex problems—whether it's optimizing underwriting models or building accessible front-end interfaces.`,
+    goals: `I’m looking for a role where I can leverage both my engineering skills and data science expertise to build impactful, data-driven products.`,
   },
   skills: [
-    { category: 'Frontend', items: ['React', 'TypeScript', 'Vite', 'Next.js', 'HTML', 'CSS', 'Accessibility'] },
-    { category: 'Backend', items: ['Node.js', 'Express', 'REST APIs', 'PostgreSQL', 'Prisma', 'Auth'] },
-    { category: 'Tooling', items: ['Git', 'CI/CD', 'Testing', 'Playwright', 'Jest', 'Docker'] },
+    {
+      category: "Languages",
+      items: [
+        "Python",
+        "SQL",
+        "TypeScript",
+        "JavaScript",
+        "Java",
+        "C++",
+        "C#",
+        "R",
+        "SAS",
+        "MATLAB",
+      ],
+    },
+    {
+      category: "Frameworks & Libraries",
+      items: [
+        "React",
+        "Node.js",
+        "NestJS",
+        "Angular",
+        "TensorFlow",
+        "PyTorch",
+        "Scikit-Learn",
+        "Pandas",
+        "Tailwind CSS",
+      ],
+    },
+    {
+      category: "Tools & Platforms",
+      items: [
+        "Git",
+        "Docker",
+        "AWS/GCP",
+        "HuggingFace",
+        "Tableau",
+        "PowerBI",
+        "Jira",
+        "Figma",
+      ],
+    },
   ],
   projects: [
     {
-      name: 'Project Alpha',
-      description: 'A responsive SaaS dashboard with role-based access, charts, and an activity feed.',
-      tech: ['React', 'TypeScript', 'Charting', 'REST'],
-      links: { demo: 'https://example.com', repo: 'https://github.com/your-handle/project-alpha' },
+      name: "LLM Normative Reasoning",
+      description:
+        "Built a multi-agent LLM pipeline with role-based prompts for debate and consensus, evaluating model performance on normative tasks.",
+      tech: ["Python", "Llama 3.1/3.2", "Perplexity API"],
+      links: {},
     },
     {
-      name: 'Project Beta',
-      description: 'A lightweight knowledge base app with fast search and offline-first reading mode.',
-      tech: ['React', 'IndexedDB', 'Search'],
-      links: { repo: 'https://github.com/your-handle/project-beta' },
+      name: "Twitter Sentiment Analysis",
+      description:
+        "Developed a sentiment analysis model for live social media data using Hugging Face transformers and a Streamlit dashboard.",
+      tech: ["Python", "Hugging Face", "Streamlit", "Matplotlib"],
+      links: {},
     },
     {
-      name: 'Project Gamma',
-      description: 'An internal tool that automated reporting and reduced manual ops work.',
-      tech: ['Node.js', 'PostgreSQL', 'Cron'],
+      name: "March Madness Prediction",
+      description:
+        "Evaluated Neural Network Models (MLP, GRU) to predict tournament outcomes with up to 89% accuracy.",
+      tech: ["Python", "SciKit-Learn", "Pandas", "NumPy"],
+      links: {},
+    },
+    {
+      name: "Patient Management System",
+      description:
+        "Constructed a scalable database system for dentists, reducing appointment booking time by 75%.",
+      tech: ["Node.js", "PostgreSQL", "Selenium", "GCP"],
       links: {},
     },
   ],
   experience: [
     {
-      company: 'Company Name',
-      role: 'Senior Software Engineer',
-      location: 'Remote',
-      dates: '2022 — Present',
+      company: "Propel Holdings",
+      role: "Data Scientist",
+      location: "Toronto, Ontario",
+      dates: "May 2025 — Aug 2025",
       highlights: [
-        'Led a redesign that improved conversion and reduced support tickets.',
-        'Built shared UI components and improved accessibility across core flows.',
-        'Improved performance (LCP/TTI) by optimizing bundles and data fetching.',
+        "Updated predictive underwriting models using XGBoost, increasing accuracy by 5%.",
+        "Automated hyperparameter tuning via Optuna and reduced multicollinearity through feature pruning.",
+        "Engineered a robust feature pipeline with optimal binning and outlier handling for production data.",
       ],
-      tech: ['React', 'TypeScript', 'Design Systems', 'Performance'],
+      tech: ["Python", "Scikit-Learn", "XGBoost", "Java"],
     },
     {
-      company: 'Previous Company',
-      role: 'Software Engineer',
-      location: 'City, Country',
-      dates: '2019 — 2022',
+      company: "VectorSolv",
+      role: "Full Stack Developer",
+      location: "Gatineau, Quebec",
+      dates: "May 2023 — Aug 2023",
       highlights: [
-        'Shipped features end-to-end with product and design partners.',
-        'Integrated APIs and improved reliability with better error handling and observability.',
+        "Developed a customer warranty page using Angular and NestJS, streamlining the claims process.",
+        "Expanded email compatibility to broader devices, achieving a 50% increase in accessibility.",
+        "Utilized RxJS observables to manage asynchronous operations and API calls.",
       ],
-      tech: ['React', 'Node.js', 'REST', 'Testing'],
+      tech: ["Angular", "NestJS", "RxJS", "Firebase"],
+    },
+    {
+      company: "Statistics Canada (CHSP)",
+      role: "Data Analyst",
+      location: "Ottawa, Ontario",
+      dates: "Sep 2022 — Dec 2022",
+      highlights: [
+        "Optimized SAS and SQL programs to eliminate over 10 months of data processing time.",
+        "Integrated raw provincial housing data into a tool enabling remote execution of SAS processes.",
+        "Contributed to the Standardization Team for high-priority data projects.",
+      ],
+      tech: ["SAS", "SQL", "Python"],
+    },
+    {
+      company: "Statistics Canada (Electronic Questionnaire)",
+      role: "Programmer Analyst",
+      location: "Ottawa, Ontario",
+      dates: "Jan 2021 — Aug 2021",
+      highlights: [
+        "Engineered and tested Electronic Questionnaire software for government clients using C# and JavaScript.",
+        "Created a Python script to develop test cases, leading to a 50% decrease in testing time.",
+        "Tested software using data pulled from SQL queries to validate employment rate calculations.",
+        "Redesigned and tested software while working in an Agile environment.",
+      ],
+      tech: ["C#", "SQL", "jQuery", "Python"],
+    },
+    {
+      company: "Software for Love",
+      role: "Project Manager / Software Engineer",
+      location: "Ottawa, Ontario",
+      dates: "Apr 2020 — Mar 2023",
+      highlights: [
+        "Led the website redesign using Figma and Gatsby; initiated Agile practices for an 8-person team.",
+        "Ensured >80% code coverage and implemented a donation page using Stripe.",
+      ],
+      tech: ["Gatsby", "React", "PostgreSQL", "Jira"],
     },
   ],
-}
-
+};
