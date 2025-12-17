@@ -280,17 +280,133 @@
   gap: 14px;
 }
 
-.experienceGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+.timeline {
+  position: relative;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 20px;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--brand), var(--brand2));
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.timelineItem {
+  position: relative;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.timelineItem:last-child {
+  margin-bottom: 0;
+}
+
+.timelineMarker {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand), var(--brand2));
+  border: 3px solid var(--panel);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.timelineContent {
+  position: relative;
+  width: calc(50% - 30px);
+}
+
+.timelineLeft .timelineContent {
+  margin-right: auto;
+  padding-right: 30px;
+  text-align: right;
+}
+
+.timelineRight .timelineContent {
+  margin-left: auto;
+  padding-left: 30px;
+  text-align: left;
+}
+
+.timelineLeft .timelineContent .tags {
+  justify-content: flex-end;
+}
+
+.timelineRight .timelineContent .tags {
+  justify-content: flex-start;
+}
+
+.timelineLeft .timelineContent .jobHeader {
+  flex-direction: row-reverse;
+}
+
+.timelineContent .card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.timelineLeft .timelineContent .card:hover {
+  transform: translateX(-4px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+}
+
+.timelineRight .timelineContent .card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
 }
 
 @media (max-width: 768px) {
-  .experienceGrid {
-    grid-template-columns: 1fr;
+  .timeline {
+    padding: 0 10px;
+  }
+
+  .timeline::before {
+    left: 20px;
+    transform: none;
+  }
+
+  .timelineMarker {
+    left: 20px;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+  }
+
+  .timelineContent {
+    width: calc(100% - 50px);
+    margin-left: 50px !important;
+    padding-left: 20px !important;
+    padding-right: 0 !important;
+    text-align: left !important;
+  }
+
+  .timelineLeft .timelineContent .tags,
+  .timelineRight .timelineContent .tags {
+    justify-content: flex-start;
+  }
+
+  .timelineLeft .timelineContent .jobHeader,
+  .timelineRight .timelineContent .jobHeader {
+    flex-direction: row;
+  }
+
+  .timelineContent .card:hover {
+    transform: translateX(4px) !important;
   }
 }
 

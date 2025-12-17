@@ -355,31 +355,41 @@ function App() {
           <div className="sectionHeader">
             <h2>Experience</h2>
           </div>
-          <div className="experienceGrid">
-            {resume.experience.map((job) => (
-              <div className="card" key={`${job.company}-${job.role}`}>
-                <div className="jobHeader">
-                  <div>
-                    <h3 className="cardTitle">{job.role}</h3>
-                    <p className="muted">
-                      <strong>{job.company}</strong> • {job.location}
-                    </p>
+          <div className="timeline">
+            {resume.experience.map((job, index) => (
+              <div
+                className={`timelineItem ${
+                  index % 2 === 0 ? "timelineLeft" : "timelineRight"
+                }`}
+                key={`${job.company}-${job.role}`}
+              >
+                <div className="timelineMarker"></div>
+                <div className="timelineContent">
+                  <div className="card">
+                    <div className="jobHeader">
+                      <div>
+                        <h3 className="cardTitle">{job.role}</h3>
+                        <p className="muted">
+                          <strong>{job.company}</strong> • {job.location}
+                        </p>
+                      </div>
+                      <span className="metaPill">{job.dates}</span>
+                    </div>
+                    <div className="experienceHighlights">
+                      {job.highlights.map((h) => (
+                        <p key={h} className="experienceItem">
+                          {h}
+                        </p>
+                      ))}
+                    </div>
+                    <div className="tags">
+                      {job.tech.map((t) => (
+                        <span className="tag" key={t}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <span className="metaPill">{job.dates}</span>
-                </div>
-                <div className="experienceHighlights">
-                  {job.highlights.map((h) => (
-                    <p key={h} className="experienceItem">
-                      {h}
-                    </p>
-                  ))}
-                </div>
-                <div className="tags">
-                  {job.tech.map((t) => (
-                    <span className="tag" key={t}>
-                      {t}
-                    </span>
-                  ))}
                 </div>
               </div>
             ))}
