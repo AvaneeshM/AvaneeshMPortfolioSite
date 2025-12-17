@@ -1,0 +1,47 @@
+:root {
+  --bg: #070b12;
+  --panel: #0c1320;
+  --text: rgba(255, 255, 255, 0.93);
+  --muted: rgba(255, 255, 255, 0.72);
+  --border: rgba(255, 255, 255, 0.12);
+  --brand: #67e8f9;
+  --brand2: #a78bfa;
+
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji',
+    'Segoe UI Emoji';
+  line-height: 1.5;
+  font-weight: 450;
+  color: var(--text);
+  background: radial-gradient(1200px 700px at 10% 10%, rgba(103, 232, 249, 0.14), transparent 55%),
+    radial-gradient(900px 520px at 90% 20%, rgba(167, 139, 250, 0.14), transparent 55%),
+    radial-gradient(900px 520px at 50% 90%, rgba(34, 211, 238, 0.08), transparent 60%), var(--bg);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+a {
+  color: color-mix(in srgb, var(--brand) 70%, white);
+  text-decoration: none;
+}
+
+a:hover {
+  color: color-mix(in srgb, var(--brand2) 70%, white);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand) 30%, transparent);
+}
