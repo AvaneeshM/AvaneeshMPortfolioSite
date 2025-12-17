@@ -48,7 +48,7 @@ export const resume: Resume = {
     email: "madaramavaneesh@gmail.com",
     availability: "Open to opportunities",
     summary:
-      "Master’s candidate in Data Science & AI with strong foundations in full-stack development. Experienced in building predictive models, optimizing data pipelines, and shipping scalable web apps.",
+      "Master's in Data Science and AI Student with a background in Software Engineering. Experienced in building predictive models, optimizing data pipelines, and shipping scalable web apps.",
     links: {
       github: "https://github.com/avaneesh-madaram",
       linkedin: "https://linkedin.com/in/avaneesh-madaram",
@@ -56,12 +56,12 @@ export const resume: Resume = {
     },
   },
   highlights: [
-    "Masters in Data Science and AI (University of Waterloo)",
-    "Bachelor of Science in Software Engineering (University of Ottawa)",
+    "Master's in Data Science and AI (University of Waterloo)",
+    "Bachelor's of Applied Science in Software Engineering (University of Ottawa)",
   ],
   about: {
     tagline: "",
-    bio: `I am a software engineer and data scientist passionate about building intelligent systems. With a background in Applied Science and currently pursuing a Master's in Data Science at UWaterloo, I enjoy solving complex problems—whether it's optimizing underwriting models or building accessible front-end interfaces.`,
+    bio: `As a recent Master's graduate in Data Science & AI, I thrive at the intersection of engineering and analytics. I enjoy leveraging my background in software engineering to build robust data products. Whether it's crafting intuitive front-end interfaces or optimizing backend data logic, I am eager to apply my skills in Python, web development, and AI to tackle challenging real-world problems.`,
     goals: `I’m looking for a role where I can leverage both my engineering skills and data science expertise to build impactful, data-driven products.`,
   },
   skills: [
@@ -112,28 +112,28 @@ export const resume: Resume = {
     {
       name: "LLM Normative Reasoning",
       description:
-        "Built a multi-agent LLM pipeline with role-based prompts for debate and consensus, evaluating model performance on normative tasks.",
+        "Built a multi-agent LLM system with specialized roles for reasoning and decision-making. Focused on prompt engineering, model evaluation, and ethical AI applications.",
       tech: ["Python", "Llama 3.1/3.2", "Perplexity API"],
       links: {},
     },
     {
       name: "Twitter Sentiment Analysis",
       description:
-        "Developed a sentiment analysis model for live social media data using Hugging Face transformers and a Streamlit dashboard.",
+        "Developed an end-to-end NLP project from data collection to visualization. Fine-tuned transformer models and created an interactive dashboard for real-time sentiment tracking.",
       tech: ["Python", "Hugging Face", "Streamlit", "Matplotlib"],
       links: {},
     },
     {
       name: "March Madness Prediction",
       description:
-        "Evaluated Neural Network Models (MLP, GRU) to predict tournament outcomes with up to 89% accuracy.",
+        "Engineered a machine learning model to predict tournament outcomes using historical sports data. Experimented with different neural network architectures and evaluated model performance",
       tech: ["Python", "SciKit-Learn", "Pandas", "NumPy"],
       links: {},
     },
     {
       name: "Patient Management System",
       description:
-        "Constructed a scalable database system for dentists, reducing appointment booking time by 75%.",
+        "Designed and built a full-stack database application for healthcare workflow optimization. Demonstrated expertise in backend logic, database design, and cloud deployment.",
       tech: ["Node.js", "PostgreSQL", "Selenium", "GCP"],
       links: {},
     },
@@ -145,9 +145,7 @@ export const resume: Resume = {
       location: "Toronto, Ontario",
       dates: "May 2025 — Aug 2025",
       highlights: [
-        "Updated predictive underwriting models using XGBoost, increasing accuracy by 5%.",
-        "Automated hyperparameter tuning via Optuna and reduced multicollinearity through feature pruning.",
-        "Engineered a robust feature pipeline with optimal binning and outlier handling for production data.",
+        "Applied machine learning and statistical techniques to improve predictive modeling. Worked with feature engineering, model optimization, and interpretation tools to enhance model performance and drive data-driven business decisions.",
       ],
       tech: ["Python", "Scikit-Learn", "XGBoost", "Java"],
     },
@@ -157,9 +155,7 @@ export const resume: Resume = {
       location: "Gatineau, Quebec",
       dates: "May 2023 — Aug 2023",
       highlights: [
-        "Developed a customer warranty page using Angular and NestJS, streamlining the claims process.",
-        "Expanded email compatibility to broader devices, achieving a 50% increase in accessibility.",
-        "Utilized RxJS observables to manage asynchronous operations and API calls.",
+        "Developed user-facing web applications using modern frontend and backend frameworks. Focused on creating accessible, responsive interfaces and maintaining clean, testable code across the stack.",
       ],
       tech: ["Angular", "NestJS", "RxJS", "Firebase"],
     },
@@ -169,9 +165,7 @@ export const resume: Resume = {
       location: "Ottawa, Ontario",
       dates: "Sep 2022 — Dec 2022",
       highlights: [
-        "Optimized SAS and SQL programs to eliminate over 10 months of data processing time.",
-        "Integrated raw provincial housing data into a tool enabling remote execution of SAS processes.",
-        "Contributed to the Standardization Team for high-priority data projects.",
+        "Optimized data processing workflows and pipelines. Integrated and transformed large datasets, collaborated with cross-functional teams, and contributed to critical data standardization initiatives.",
       ],
       tech: ["SAS", "SQL", "Python"],
     },
@@ -181,10 +175,7 @@ export const resume: Resume = {
       location: "Ottawa, Ontario",
       dates: "Jan 2021 — Aug 2021",
       highlights: [
-        "Engineered and tested Electronic Questionnaire software for government clients using C# and JavaScript.",
-        "Created a Python script to develop test cases, leading to a 50% decrease in testing time.",
-        "Tested software using data pulled from SQL queries to validate employment rate calculations.",
-        "Redesigned and tested software while working in an Agile environment.",
+        "Built and tested software applications for government systems. Created automation tools to improve development efficiency and worked in agile environments to deliver robust solutions.",
       ],
       tech: ["C#", "SQL", "jQuery", "Python"],
     },
@@ -194,8 +185,7 @@ export const resume: Resume = {
       location: "Ottawa, Ontario",
       dates: "Apr 2020 — Mar 2023",
       highlights: [
-        "Led the website redesign using Figma and Gatsby; initiated Agile practices for an 8-person team.",
-        "Ensured >80% code coverage and implemented a donation page using Stripe.",
+        "Led product redesigns and managed a team in an agile setting. Implemented features end-to-end using modern web technologies, ensuring high code quality and reliability.",
       ],
       tech: ["Gatsby", "React", "PostgreSQL", "Jira"],
     },
