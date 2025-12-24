@@ -61,7 +61,7 @@ export const resume: Resume = {
   ],
   about: {
     tagline: "",
-    bio: `As a recent Master's graduate in Data Science & AI, I thrive at the intersection of engineering and analytics. I enjoy leveraging my background in software engineering to build robust data products. Whether it's crafting intuitive front-end interfaces or optimizing backend data logic, I am eager to apply my skills in Python, web development, and AI to tackle challenging real-world problems.`,
+    bio: `As a recent Master's graduate in Data Science & AI, I work at the intersection of engineering and analytics. I enjoy leveraging my background in software engineering to build robust data products. Whether it's crafting intuitive front-end interfaces or optimizing backend data logic, I am eager to apply my skills in Python, web development, and AI to tackle challenging real-world problems.`,
     goals: `I’m looking for a role where I can leverage both my engineering skills and data science expertise to build impactful, data-driven products.`,
   },
   skills: [
