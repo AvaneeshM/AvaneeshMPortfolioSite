@@ -1,59 +1,69 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Resume } from '../data/resume'
-import { answerFromResume } from '../lib/resumeChat'
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Resume } from "../data/resume";
+import { answerFromResume, answerFromResumeAsync } from "../lib/resumeChat";
 
 type ChatMessage = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-}
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
 
 function uid() {
-  return Math.random().toString(16).slice(2) + Date.now().toString(16)
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
 
 export function ChatbotWidget({ resume }: { resume: Resume }) {
-  const [open, setOpen] = useState(false)
-  const [input, setInput] = useState('')
-  const [typing, setTyping] = useState(false)
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: uid(),
-      role: 'assistant',
+      role: "assistant",
       content: `Hi! I’m the resume bot for ${resume.basics.name}. Ask me anything about skills, projects, or experience.`,
     },
-  ])
+  ]);
 
-  const { suggestedQuestions } = useMemo(() => answerFromResume('overview', resume), [resume])
+  const { suggestedQuestions } = useMemo(
+    () => answerFromResume("overview", resume),
+    [resume]
+  );
 
-  const listRef = useRef<HTMLDivElement | null>(null)
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (open) {
-      setTimeout(() => inputRef.current?.focus(), 0)
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
-  }, [open])
+  }, [open]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, typing])
+    listRef.current?.scrollTo({
+      top: listRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, typing]);
 
   async function respond(question: string) {
-    setTyping(true)
+    setTyping(true);
     // tiny delay so the UI feels responsive/real-time
-    await new Promise((r) => setTimeout(r, 250))
-    const result = answerFromResume(question, resume)
-    setMessages((prev) => [...prev, { id: uid(), role: 'assistant', content: result.answer }])
-    setTyping(false)
+    await new Promise((r) => setTimeout(r, 250));
+    // Use RAG (async) for better semantic understanding
+    const result = await answerFromResumeAsync(question, resume);
+    setMessages((prev) => [
+      ...prev,
+      { id: uid(), role: "assistant", content: result.answer },
+    ]);
+    setTyping(false);
   }
 
   async function onSend(text: string) {
-    const q = text.trim()
-    if (!q || typing) return
-    setInput('')
-    setMessages((prev) => [...prev, { id: uid(), role: 'user', content: q }])
-    await respond(q)
+    const q = text.trim();
+    if (!q || typing) return;
+    setInput("");
+    setMessages((prev) => [...prev, { id: uid(), role: "user", content: q }]);
+    await respond(q);
   }
 
   return (
@@ -61,10 +71,10 @@ export function ChatbotWidget({ resume }: { resume: Resume }) {
       <button
         type="button"
         className="chatFab"
-        aria-label={open ? 'Close resume chatbot' : 'Open resume chatbot'}
+        aria-label={open ? "Close resume chatbot" : "Open resume chatbot"}
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? '✕' : 'Chat'}
+        {open ? "✕" : "Chat"}
       </button>
 
       {open && (
@@ -72,18 +82,30 @@ export function ChatbotWidget({ resume }: { resume: Resume }) {
           <header className="chatHeader">
             <div>
               <div className="chatTitle">AI Resume Chatbot</div>
-              <div className="chatSubtitle">Trained on {resume.basics.name}'s resume (local).</div>
+              <div className="chatSubtitle">
+                Trained on {resume.basics.name}'s resume (local).
+              </div>
             </div>
-            <button type="button" className="chatClose" onClick={() => setOpen(false)} aria-label="Close">
+            <button
+              type="button"
+              className="chatClose"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+            >
               ✕
             </button>
           </header>
 
           <div className="chatList" ref={listRef}>
             {messages.map((m) => (
-              <div key={m.id} className={`chatMsg ${m.role === 'user' ? 'chatUser' : 'chatAssistant'}`}>
+              <div
+                key={m.id}
+                className={`chatMsg ${
+                  m.role === "user" ? "chatUser" : "chatAssistant"
+                }`}
+              >
                 <div className="chatBubble">
-                  {m.content.split('\n').map((line, idx) => (
+                  {m.content.split("\n").map((line, idx) => (
                     <p key={idx} className="chatLine">
                       {line}
                     </p>
@@ -119,8 +141,8 @@ export function ChatbotWidget({ resume }: { resume: Resume }) {
           <form
             className="chatForm"
             onSubmit={(e) => {
-              e.preventDefault()
-              void onSend(input)
+              e.preventDefault();
+              void onSend(input);
             }}
           >
             <input
@@ -131,13 +153,16 @@ export function ChatbotWidget({ resume }: { resume: Resume }) {
               placeholder="Ask about skills, projects, experience…"
               aria-label="Chat input"
             />
-            <button className="chatSend" type="submit" disabled={!input.trim() || typing}>
+            <button
+              className="chatSend"
+              type="submit"
+              disabled={!input.trim() || typing}
+            >
               Send
             </button>
           </form>
         </section>
       )}
     </>
-  )
+  );
 }
-
