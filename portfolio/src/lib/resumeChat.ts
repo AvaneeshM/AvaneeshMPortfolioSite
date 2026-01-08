@@ -5,7 +5,6 @@ import {
   cosineSimilarityEmbeddings,
   type EmbeddingVector,
 } from "./embeddings";
-import { extractTextFromPDF } from "./pdfParser";
 
 type CorpusChunk = {
   id: string;
@@ -90,96 +89,8 @@ function tokenize(text: string): string[] {
 }
 
 /**
- * Build corpus from PDF text instead of structured resume
- * This provides more complete information from the actual resume document
- */
-function buildCorpusFromPDF(pdfText: string): CorpusChunk[] {
-  const chunks: CorpusChunk[] = [];
-
-  // Split PDF text into meaningful sections
-  const sections = splitPDFIntoSections(pdfText);
-
-  sections.forEach((section, idx) => {
-    chunks.push({
-      id: `pdf-section-${idx}`,
-      title: section.title || "Resume Content",
-      text: section.content,
-    });
-
-    // Also create smaller chunks for better matching
-    const sentences = section.content.split(/[.!?]+\s+/).filter(Boolean);
-    sentences.forEach((sentence, sIdx) => {
-      if (sentence.trim().length > 20) {
-        // Only create chunks for substantial sentences
-        chunks.push({
-          id: `pdf-section-${idx}-sentence-${sIdx}`,
-          title: section.title || "Resume Content",
-          text: sentence.trim(),
-        });
-      }
-    });
-  });
-
-  return chunks;
-}
-
-/**
- * Split PDF text into meaningful sections based on headings
- */
-function splitPDFIntoSections(
-  pdfText: string
-): Array<{ title: string; content: string }> {
-  const sections: Array<{ title: string; content: string }> = [];
-
-  let currentSection: { title: string; content: string } | null = null;
-  const lines = pdfText.split("\n");
-
-  for (const line of lines) {
-    // Check if this line is a section header
-    const isHeader =
-      /^(Education|Skills|Work Experience|Experience|Projects|Summary|About|AVANEESH|Contact|Languages|Frameworks|Technologies)/i.test(
-        line.trim()
-      );
-
-    if (isHeader && line.trim().length < 100) {
-      // Save previous section
-      if (currentSection && currentSection.content.trim().length > 0) {
-        sections.push(currentSection);
-      }
-      // Start new section
-      currentSection = {
-        title: line.trim().replace(/^#\s*/, ""),
-        content: "",
-      };
-    } else if (currentSection) {
-      currentSection.content += line + "\n";
-    } else {
-      // Content before first section header
-      if (!currentSection) {
-        currentSection = { title: "Resume Header", content: "" };
-      }
-      currentSection.content += line + "\n";
-    }
-  }
-
-  // Add last section
-  if (currentSection && currentSection.content.trim().length > 0) {
-    sections.push(currentSection);
-  }
-
-  // If no sections found, create one big chunk
-  if (sections.length === 0) {
-    sections.push({
-      title: "Resume",
-      content: pdfText,
-    });
-  }
-
-  return sections;
-}
-
-/**
- * Build corpus from structured resume data (legacy, for portfolio display)
+ * Build corpus from structured resume data
+ * Creates comprehensive chunks for RAG retrieval
  */
 function buildCorpus(resume: Resume): CorpusChunk[] {
   const chunks: CorpusChunk[] = [];
@@ -413,6 +324,48 @@ function extractRelevantSentences(
 }
 
 /**
+ * Filter out unwanted content from snippets (contact info, etc.)
+ */
+function cleanSnippet(snippet: string): string {
+  let cleaned = snippet;
+
+  // Remove special characters that cause display issues first
+  cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF\u0080-\u009F]/g, "");
+  cleaned = cleaned.replace(/[•§#\u2022\u25CF]/g, " ");
+
+  // Remove phone numbers
+  cleaned = cleaned.replace(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/g, " ");
+  cleaned = cleaned.replace(/\d{3}-\d{3}-\d{4}/g, " ");
+
+  // Remove email addresses
+  cleaned = cleaned.replace(
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+    " "
+  );
+
+  // Remove URLs
+  cleaned = cleaned.replace(/https?:\/\/[^\s]+/g, " ");
+
+  // Remove LinkedIn/GitHub text artifacts
+  cleaned = cleaned.replace(/(LinkedIn|GitHub)\s*[§#•]/gi, " ");
+  cleaned = cleaned.replace(/\b(LinkedIn|GitHub)\b/gi, " ");
+
+  // Remove name artifacts from header
+  cleaned = cleaned.replace(/AVANEESH\s+MADARAM/gi, " ");
+
+  // Fix broken words (space between letters)
+  cleaned = cleaned.replace(/\s+([a-z])\s+([a-z])/gi, " $1$2");
+
+  // Fix spacing around punctuation
+  cleaned = cleaned.replace(/\s*([.,;:!?])\s*/g, "$1 ");
+
+  // Clean up multiple spaces
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  return cleaned;
+}
+
+/**
  * Generate a concise answer for role/company-specific questions
  */
 function generateConciseRoleAnswer(
@@ -432,17 +385,44 @@ function generateConciseRoleAnswer(
     /interested in/i,
   ];
 
-  const filteredSources = sources.filter((s) => {
-    const snippetLower = s.snippet.toLowerCase();
-    // Exclude if title contains "Goals" or snippet contains goal patterns
-    if (
-      s.title.toLowerCase().includes("goal") ||
-      goalPatterns.some((pattern) => pattern.test(snippetLower))
-    ) {
-      return false;
-    }
-    return true;
-  });
+  // Also filter out contact info patterns
+  const contactPatterns = [
+    /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/, // Phone numbers
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/, // Emails
+    /416-\d{3}-\d{4}/, // Specific phone pattern
+    /madaramavaneesh@gmail\.com/i, // Email
+  ];
+
+  const filteredSources = sources
+    .map((s) => ({
+      ...s,
+      snippet: cleanSnippet(s.snippet), // Clean snippets first
+    }))
+    .filter((s) => {
+      const snippetLower = s.snippet.toLowerCase();
+      // Exclude if empty after cleaning
+      if (s.snippet.trim().length < 10) {
+        return false;
+      }
+      // Exclude if title contains "Goals" or snippet contains goal patterns
+      if (
+        s.title.toLowerCase().includes("goal") ||
+        goalPatterns.some((pattern) => pattern.test(snippetLower))
+      ) {
+        return false;
+      }
+      // Exclude if contains contact info
+      if (
+        contactPatterns.some((pattern) => pattern.test(s.snippet)) ||
+        snippetLower.includes("416-294-1863") ||
+        snippetLower.includes("madaramavaneesh@gmail.com") ||
+        snippetLower.includes("linkedin") ||
+        snippetLower.includes("github")
+      ) {
+        return false;
+      }
+      return true;
+    });
 
   // Use filtered sources, or fall back to all sources if filtering removed everything
   const sourcesToUse = filteredSources.length > 0 ? filteredSources : sources;
@@ -480,68 +460,215 @@ function generateConciseRoleAnswer(
     parts.push(dateMatch[1]);
   }
 
-  // Extract key bullet points (usually start with - or •)
-  const bullets = cleanedText
-    .split(/\n|\./)
-    .filter((line) => {
-      const trimmed = line.trim();
-      // Exclude goal-related content from bullets
-      const hasGoalContent = goalPatterns.some((pattern) =>
-        pattern.test(trimmed.toLowerCase())
-      );
-      return (
-        (trimmed.startsWith("-") || trimmed.startsWith("•")) &&
-        trimmed.length > 20 &&
-        trimmed.length < 200 &&
-        !hasGoalContent
-      );
-    })
-    .map((b) => b.trim().replace(/^[-•]\s*/, ""))
-    .slice(0, 3); // Limit to top 3 most relevant
+  // Extract and summarize key accomplishments instead of raw bullets
+  const sentences = cleanedText.split(/[.!?]+\s+/).filter((s) => {
+    const trimmed = s.trim();
+    const hasGoalContent = goalPatterns.some((pattern) =>
+      pattern.test(trimmed.toLowerCase())
+    );
+    return trimmed.length > 20 && trimmed.length < 300 && !hasGoalContent;
+  });
 
-  if (bullets.length > 0) {
-    parts.push("");
-    parts.push(...bullets.map((b) => `• ${b}`));
-  } else {
-    // Fallback: extract first 2-3 sentences that aren't too long and don't contain goals
-    const sentences = cleanedText
-      .split(/[.!?]+\s+/)
-      .filter((s) => {
-        const trimmed = s.trim();
-        const hasGoalContent = goalPatterns.some((pattern) =>
-          pattern.test(trimmed.toLowerCase())
-        );
-        return trimmed.length > 30 && trimmed.length < 200 && !hasGoalContent;
-      })
-      .slice(0, 2)
-      .map((s) => s.trim());
+  // Look for accomplishment patterns
+  const accomplishmentPatterns = [
+    /(?:increased|improved|achieved|reduced|developed|built|created|led|optimized|automated|applied|updated)/i,
+    /(?:using|via|through|with).*(?:XGBoost|machine learning|model|algorithm|system|tool|framework)/i,
+  ];
 
-    if (sentences.length > 0) {
+  const keyAccomplishments = sentences
+    .filter((s) => accomplishmentPatterns.some((pattern) => pattern.test(s)))
+    .slice(0, 3)
+    .map((s) => {
+      let cleaned = s.trim().replace(/^[-•]\s*/, "");
+      if (!cleaned.endsWith(".")) {
+        cleaned += ".";
+      }
+      return cleaned;
+    });
+
+  if (keyAccomplishments.length > 0) {
+    // Create a natural summary
+    if (parts.length > 0) {
       parts.push("");
-      parts.push(...sentences);
+    }
+    parts.push(
+      `Key accomplishments included: ${keyAccomplishments
+        .slice(0, 2)
+        .join(" ")}`
+    );
+  } else {
+    // Fallback: summarize key responsibilities
+    const keyResponsibilities = sentences
+      .filter((s) => {
+        const lower = s.toLowerCase();
+        return (
+          lower.includes("worked") ||
+          lower.includes("developed") ||
+          lower.includes("implemented") ||
+          lower.includes("designed") ||
+          lower.includes("created") ||
+          lower.includes("built") ||
+          lower.includes("optimized") ||
+          lower.includes("automated")
+        );
+      })
+      .slice(0, 4) // Include more responsibilities for comprehensive answer
+      .map((s) => {
+        let cleaned = s.trim().replace(/^[-•]\s*/, "");
+        if (!cleaned.endsWith(".")) {
+          cleaned += ".";
+        }
+        return cleaned;
+      });
+
+    if (keyResponsibilities.length > 0) {
+      if (parts.length > 0) {
+        parts.push("");
+      }
+      // Format as a comprehensive numbered list
+      const responsibilitiesText = keyResponsibilities
+        .slice(0, 4)
+        .map((resp, idx) => `${idx + 1}. ${resp}`)
+        .join("\n");
+      parts.push(`Key responsibilities included:\n${responsibilitiesText}`);
     }
   }
 
-  // If we have structured info, return it; otherwise return cleaned up version
+  // If we have a good summary, return it
   if (parts.length > 1) {
     return parts.join("\n");
   }
 
-  // Fallback to cleaned snippets (excluding goals)
-  return sourcesToUse
-    .map((s) => s.snippet.trim())
+  // Fallback: create a simple summary from snippets
+  const cleanedSnippets = sourcesToUse
+    .map((s) => cleanSnippet(s.snippet.trim()))
     .filter((snippet) => {
       const hasGoalContent = goalPatterns.some((pattern) =>
         pattern.test(snippet.toLowerCase())
       );
-      return !hasGoalContent && snippet.length > 0;
-    })
-    .slice(0, 2)
-    .join("\n");
+      return !hasGoalContent && snippet.length > 20;
+    });
+
+  if (cleanedSnippets.length > 0) {
+    // Create a comprehensive summary from multiple snippets
+    // Combine multiple snippets for a more detailed answer
+    const combinedSnippets = cleanedSnippets
+      .slice(0, 5) // Use up to 5 snippets for comprehensive answers
+      .map((snippet) => {
+        const words = snippet.split(/\s+/);
+        // Keep more content for comprehensive answers (don't truncate as aggressively)
+        if (words.length > 100) {
+          return words.slice(0, 100).join(" ") + "...";
+        }
+        return snippet;
+      })
+      .filter((s) => s.length > 20);
+
+    if (combinedSnippets.length > 1) {
+      return combinedSnippets.join("\n\n");
+    }
+    return (
+      combinedSnippets[0] ||
+      "I found information about this role, but couldn't extract specific details."
+    );
+  }
+
+  return "I found information about this role, but couldn't extract specific details.";
 }
 
 /**
- * Generate a natural answer from retrieved sources
+ * Generate answer specifically for skills/languages questions
+ */
+function generateSkillsAnswer(
+  sources: Array<{ title: string; snippet: string }>
+): string {
+  // Clean all snippets first
+  const cleanedSources = sources
+    .map((s) => ({
+      title: s.title,
+      snippet: cleanSnippet(s.snippet),
+    }))
+    .filter((s) => {
+      // Filter out contact info and irrelevant content
+      const snippetLower = s.snippet.toLowerCase();
+      return (
+        s.snippet.length > 10 &&
+        !snippetLower.includes("@") &&
+        !snippetLower.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) &&
+        !snippetLower.includes("university of") &&
+        !snippetLower.includes("education") &&
+        !snippetLower.includes("master") &&
+        !snippetLower.includes("bachelor")
+      );
+    });
+
+  if (cleanedSources.length === 0) {
+    return "I couldn't find specific information about programming languages in the resume.";
+  }
+
+  const allText = cleanedSources.map((s) => s.snippet).join(" ");
+
+  // Extract languages from common patterns
+  const languages = [
+    "Python",
+    "SQL",
+    "R",
+    "SAS",
+    "TypeScript",
+    "JavaScript",
+    "Java",
+    "C++",
+    "C#",
+    ".NET",
+    "MATLAB",
+  ];
+
+  const foundLanguages = languages.filter((lang) =>
+    allText.toLowerCase().includes(lang.toLowerCase())
+  );
+
+  // Also try to extract from "Languages:" pattern
+  const languagesMatch = allText.match(
+    /Languages:\s*([^:]+?)(?:\n|$|Frameworks|Technologies|Tools)/i
+  );
+  if (languagesMatch) {
+    const langText = languagesMatch[1];
+    const extractedLangs = langText
+      .split(/[,•\n]/)
+      .map((l) => l.trim())
+      .filter(
+        (l) =>
+          l.length > 1 && l.length < 20 && !l.includes("@") && !l.match(/\d/)
+      )
+      .filter(
+        (l) =>
+          !l.toLowerCase().includes("university") &&
+          !l.toLowerCase().includes("education")
+      );
+
+    // Combine found languages
+    const allFoundLangs = [...new Set([...foundLanguages, ...extractedLangs])];
+
+    if (allFoundLangs.length > 0) {
+      return `Programming languages include: ${allFoundLangs.join(", ")}.`;
+    }
+  }
+
+  if (foundLanguages.length > 0) {
+    return `Programming languages include: ${foundLanguages.join(", ")}.`;
+  }
+
+  // Fallback: return cleaned summary
+  const summary = cleanedSources[0].snippet;
+  if (summary.length > 200) {
+    return summary.substring(0, 200) + "...";
+  }
+  return summary;
+}
+
+/**
+ * Generate a natural, summarized answer from retrieved sources
+ * Creates conversational summaries instead of raw snippets
  */
 function generateAnswer(
   sources: Array<{ title: string; snippet: string }>,
@@ -554,63 +681,279 @@ function generateAnswer(
     )}\\s*—\\s*[^\\n]+`,
     "i"
   );
-  const snippets = sources
+
+  // Clean and prepare snippets
+  const cleanedSnippets = sources
     .map((s) => {
-      let snippet = s.snippet.trim();
+      let snippet = cleanSnippet(s.snippet.trim());
       // Remove name/title prefix if present
       snippet = snippet.replace(nameTitleRegex, "").trim();
-      // Remove leading/trailing separators that might be left
+      // Remove leading/trailing separators
       snippet = snippet.replace(/^[—\-\s]+/, "").trim();
-      return snippet;
+      return { title: s.title, snippet };
     })
-    .filter((s) => s.length > 0);
+    .filter((s) => s.snippet.length > 15);
 
-  // Combine snippets naturally
-  let answer = "";
-  if (snippets.length === 1) {
-    answer = snippets[0];
-  } else if (snippets.length === 2) {
-    // For two snippets, join with a connector
-    answer = `${snippets[0]}\n\n${snippets[1]}`;
-  } else {
-    // For multiple snippets, combine intelligently
-    // Group by source title to avoid repetition
-    const groupedByTitle = new Map<string, string[]>();
-    sources.forEach((s) => {
-      if (!groupedByTitle.has(s.title)) {
-        groupedByTitle.set(s.title, []);
-      }
-      groupedByTitle.get(s.title)!.push(s.snippet);
-    });
-
-    const combinedSnippets: string[] = [];
-    groupedByTitle.forEach((snippets) => {
-      const combined = snippets.join(" ");
-      combinedSnippets.push(combined);
-    });
-
-    answer = combinedSnippets.join("\n\n");
+  if (cleanedSnippets.length === 0) {
+    return "I couldn't find specific information about that topic in the resume.";
   }
 
-  // Remove name and title prefix if it still appears at the start (fallback)
-  const nameTitlePattern = new RegExp(
-    `^${resume.basics.name.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&"
-    )}\\s*—\\s*[^\\n]+\\n?`,
-    "i"
+  // Group by section type
+  const grouped = new Map<string, string[]>();
+  cleanedSnippets.forEach((s) => {
+    const key = s.title.toLowerCase();
+    if (!grouped.has(key)) {
+      grouped.set(key, []);
+    }
+    grouped.get(key)!.push(s.snippet);
+  });
+
+  // Generate summaries based on section types
+  const summaries: string[] = [];
+
+  // Education summary
+  const educationSnippets = Array.from(grouped.entries())
+    .filter(([key]) => key.includes("education") || key.includes("university"))
+    .flatMap(([, snippets]) => snippets);
+
+  if (educationSnippets.length > 0) {
+    const eduText = educationSnippets.join(" ");
+    const universities = [
+      ...new Set(eduText.match(/University of (Waterloo|Ottawa)/gi) || []),
+    ];
+    const degrees = [
+      ...new Set(
+        eduText.match(
+          /(Master'?s?|Bachelor'?s?|Bachelor of [^,]+|Master'?s? in [^,]+)/gi
+        ) || []
+      ),
+    ];
+
+    if (universities.length > 0 || degrees.length > 0) {
+      let eduSummary = "Education background includes ";
+      if (degrees.length > 0) {
+        eduSummary += degrees.join(" and ");
+      }
+      if (universities.length > 0) {
+        eduSummary += ` from ${universities.join(" and ")}`;
+      }
+      eduSummary +=
+        ". This educational foundation combines advanced data science and artificial intelligence training with a strong software engineering background, enabling a unique blend of analytical and technical skills.";
+      summaries.push(eduSummary);
+    }
+  }
+
+  // Skills summary - handle languages and skills questions specifically
+  const skillsSnippets = Array.from(grouped.entries())
+    .filter(
+      ([key]) =>
+        key.includes("skill") ||
+        key.includes("language") ||
+        key.includes("framework") ||
+        key.includes("tool")
+    )
+    .flatMap(([, snippets]) => snippets);
+
+  if (skillsSnippets.length > 0) {
+    const skillsText = skillsSnippets.join(" ");
+
+    // Extract all programming languages mentioned
+    const allLanguages = [
+      "Python",
+      "SQL",
+      "R",
+      "SAS",
+      "TypeScript",
+      "JavaScript",
+      "Java",
+      "C++",
+      "C#",
+      ".NET",
+      "MATLAB",
+      "React",
+      "Node.js",
+      "NestJS",
+      "Angular",
+      "TensorFlow",
+      "PyTorch",
+      "Scikit-Learn",
+      "Pandas",
+      "NumPy",
+      "Hadoop",
+      "Spark",
+      "GGPlot",
+      "Matplotlib",
+      "Seaborn",
+      "Tailwind CSS",
+      "RxJS",
+      "OpenAI API",
+      "Lang Chain",
+      "Git",
+      "Tableau",
+      "PowerBI",
+      "Docker",
+      "Jira",
+      "Confluence",
+      "Figma",
+    ];
+
+    const mentionedLanguages = allLanguages.filter((lang) =>
+      skillsText.toLowerCase().includes(lang.toLowerCase())
+    );
+
+    if (mentionedLanguages.length > 0) {
+      // Check if question is specifically about languages
+
+      // Group languages by category
+      const programmingLanguages = mentionedLanguages.filter((lang) =>
+        [
+          "Python",
+          "SQL",
+          "R",
+          "SAS",
+          "TypeScript",
+          "JavaScript",
+          "Java",
+          "C++",
+          "C#",
+          ".NET",
+          "MATLAB",
+        ].includes(lang)
+      );
+
+      if (programmingLanguages.length > 0) {
+        const langList = programmingLanguages.join(", ");
+        summaries.push(
+          `Programming languages include ${langList}. These skills demonstrate expertise across data science (Python, R, SQL), statistical computing (SAS, MATLAB), and software development (TypeScript, JavaScript, Java, C++, C#), showcasing versatility in both analytical and engineering domains.`
+        );
+      } else {
+        // Fallback to all mentioned tech
+        const techList =
+          mentionedLanguages.length > 8
+            ? `${mentionedLanguages.slice(0, 8).join(", ")}, and more`
+            : mentionedLanguages.join(", ");
+        summaries.push(`Technical skills include ${techList}.`);
+      }
+    } else {
+      // Try to extract from "Languages:" pattern in text
+      const languagesMatch = skillsText.match(
+        /Languages:\s*([^:]+?)(?:\n|$|Languages|Frameworks|Technologies)/i
+      );
+      if (languagesMatch) {
+        const langText = languagesMatch[1];
+        const extractedLangs = langText
+          .split(/[,•\n]/)
+          .map((l) => l.trim())
+          .filter((l) => l.length > 1 && l.length < 20)
+          .slice(0, 10);
+        if (extractedLangs.length > 0) {
+          summaries.push(
+            `Programming languages include ${extractedLangs.join(", ")}.`
+          );
+        }
+      }
+    }
+  }
+
+  // Experience summary
+  const experienceSnippets = Array.from(grouped.entries())
+    .filter(
+      ([key]) =>
+        key.includes("experience") ||
+        key.includes("work") ||
+        key.includes("job")
+    )
+    .flatMap(([, snippets]) => snippets);
+
+  if (experienceSnippets.length > 0) {
+    const expText = experienceSnippets.join(" ");
+    // Extract companies and roles
+    const companies = [
+      ...new Set(
+        (expText.match(
+          /(Propel Holdings|VectorSolv|Statistics Canada|Software for Love)/gi
+        ) || []) as string[]
+      ),
+    ];
+    const roles = [
+      ...new Set(
+        (expText.match(
+          /(Data Scientist|Full Stack Developer|Data Analyst|Programmer Analyst|Software Engineer|Project Manager)/gi
+        ) || []) as string[]
+      ),
+    ];
+
+    if (companies.length > 0 || roles.length > 0) {
+      let expSummary = "Work experience includes ";
+      if (roles.length > 0) {
+        const rolesList =
+          roles.length > 3
+            ? `${roles.slice(0, 3).join(", ")}, and more`
+            : roles.join(", ");
+        expSummary += `roles as ${rolesList}`;
+      }
+      if (companies.length > 0) {
+        const companiesList =
+          companies.length > 3
+            ? `${companies.slice(0, 3).join(", ")}, and more`
+            : companies.join(", ");
+        expSummary += ` at ${companiesList}`;
+      }
+      expSummary +=
+        ". This experience spans data science, software development, and analytics roles across various industries.";
+      summaries.push(expSummary);
+    }
+  }
+
+  // Projects summary
+  const projectSnippets = Array.from(grouped.entries())
+    .filter(([key]) => key.includes("project"))
+    .flatMap(([, snippets]) => snippets);
+
+  if (projectSnippets.length > 0) {
+    const projText = projectSnippets.join(" ");
+    // Extract project names or descriptions
+    const projectKeywords = [
+      "LLM",
+      "Sentiment Analysis",
+      "March Madness",
+      "Database",
+      "Patient Management",
+    ];
+    const mentionedProjects = projectKeywords.filter((keyword) =>
+      projText.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    if (mentionedProjects.length > 0) {
+      const projectList = mentionedProjects.join(", ");
+      summaries.push(
+        `Notable projects include work on ${projectList}. These projects span machine learning applications, data analysis, and full-stack development, demonstrating hands-on experience building end-to-end solutions.`
+      );
+    }
+  }
+
+  // If we have summaries, use them; otherwise create a general summary
+  if (summaries.length > 0) {
+    return summaries.join(" ");
+  }
+
+  // Fallback: create a comprehensive summary from key snippets
+  const keySnippets = cleanedSnippets.slice(0, 5).map((s) => {
+    // Keep more comprehensive snippets for detailed answers
+    const words = s.snippet.split(/\s+/);
+    if (words.length > 60) {
+      return words.slice(0, 60).join(" ") + "...";
+    }
+    return s.snippet;
+  });
+
+  // Combine snippets into a comprehensive answer
+  if (keySnippets.length > 1) {
+    return keySnippets.join("\n\n");
+  }
+  return (
+    keySnippets[0] || "I couldn't find specific information about that topic."
   );
-  answer = answer.replace(nameTitlePattern, "").trim();
-
-  // Clean up any awkward formatting
-  answer = answer
-    .replace(/\s+/g, " ") // Normalize whitespace within sentences
-    .replace(/\n\s*\n\s*\n/g, "\n\n") // Remove excessive line breaks
-    .replace(/\s+([.!?])/g, "$1") // Remove spaces before punctuation
-    .replace(/([.!?])\s*([A-Z])/g, "$1 $2") // Ensure space after punctuation
-    .trim();
-
-  return answer;
 }
 
 /**
@@ -649,88 +992,29 @@ export type ChatAnswer = {
   suggestedQuestions: string[];
 };
 
-// Cache for PDF text to avoid re-parsing
-let pdfTextCache: string | null = null;
-let pdfLoadingPromise: Promise<string> | null = null;
-
-/**
- * Load PDF text (cached)
- */
-async function loadPDFText(): Promise<string> {
-  if (pdfTextCache) {
-    return pdfTextCache;
-  }
-
-  if (pdfLoadingPromise) {
-    return pdfLoadingPromise;
-  }
-
-  pdfLoadingPromise = (async () => {
-    try {
-      // Import PDF URL - Vite will handle the path resolution
-      // Use ?url suffix to get the URL string
-      const pdfUrl = new URL(
-        "../assets/AvaneeshResumeAllData.pdf",
-        import.meta.url
-      ).href;
-
-      // For Vite dev server and production, we might need to adjust the path
-      // Try direct import first (with ?url), then fall back to manual URL
-      let finalPdfUrl: string;
-      try {
-        const pdfModule = await import(
-          "../assets/AvaneeshResumeAllData.pdf?url"
-        );
-        finalPdfUrl =
-          typeof pdfModule === "string" ? pdfModule : pdfModule.default;
-      } catch {
-        // Fallback to manual URL construction
-        finalPdfUrl = pdfUrl;
-      }
-
-      const text = await extractTextFromPDF(finalPdfUrl);
-      pdfTextCache = text;
-      return text;
-    } catch (error) {
-      console.error(
-        "Failed to load PDF, falling back to structured resume:",
-        error
-      );
-      throw error;
-    } finally {
-      pdfLoadingPromise = null;
-    }
-  })();
-
-  return pdfLoadingPromise;
-}
-
 /**
  * RAG-based answer generation using semantic embeddings
- * Uses PDF resume text for better accuracy and completeness
- * Falls back to structured resume data if PDF fails
+ * Uses structured resume data for clean, reliable information
  * Falls back to TF-IDF if embeddings are unavailable
  */
 export async function answerFromResumeRAG(
   question: string,
   resume: Resume
 ): Promise<ChatAnswer> {
+  // Check if this is a skills/languages question
+  const isSkillsQuestion =
+    /(?:what.*language|what.*skill|which.*language|which.*skill|languages.*know|skills.*have|programming.*language)/i.test(
+      question
+    );
+
   // Check if this is a role/company-specific question
   const isRoleQuestion =
     /(?:tell me about|what.*at|role at|work at|experience at|job at|position at|about.*role)/i.test(
       question
     );
 
-  // Try to build corpus from PDF first
-  let corpus: CorpusChunk[];
-  try {
-    const pdfText = await loadPDFText();
-    corpus = buildCorpusFromPDF(pdfText);
-  } catch (error) {
-    // Fallback to structured resume data
-    console.warn("Using structured resume data instead of PDF");
-    corpus = buildCorpus(resume);
-  }
+  // Always use structured resume data - it's cleaner, more reliable, and properly formatted
+  const corpus = buildCorpus(resume);
 
   // Try to get embeddings for question and corpus
   const questionEmbedding = await getEmbedding(question);
@@ -753,9 +1037,13 @@ export async function answerFromResumeRAG(
       .sort((a, b) => b.score - a.score);
 
     // For role questions, use fewer chunks and higher threshold for conciseness
-    const topCount = isRoleQuestion ? 3 : 7;
-    const threshold = isRoleQuestion ? 0.15 : 0.1;
-    let top = scored.slice(0, topCount).filter((x) => x.score > threshold);
+    // For other questions, use more chunks but still filter by relevance
+    const topCount = isRoleQuestion ? 3 : 10; // Get more candidates for non-role questions
+    const threshold = isRoleQuestion ? 0.15 : 0.12; // Slightly higher threshold for better quality
+    let top = scored
+      .slice(0, topCount * 2) // Look at more candidates first
+      .filter((x) => x.score > threshold)
+      .slice(0, topCount); // Then take top N
 
     // For role questions, filter out goal-related chunks
     if (isRoleQuestion) {
@@ -779,26 +1067,109 @@ export async function answerFromResumeRAG(
     }
 
     if (top.length > 0) {
+      const questionTokens = tokenize(question);
       const sources = top
         .map((t) => {
+          // Clean chunk text first
+          let chunkText = cleanSnippet(t.chunk.text);
+
+          // Skip chunks that are mostly contact info or header material
+          const chunkLower = chunkText.toLowerCase();
+          const isContactInfo =
+            /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(chunkText) ||
+            /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(chunkText) ||
+            chunkLower.includes("416-294-1863") ||
+            chunkLower.includes("madaramavaneesh@gmail.com") ||
+            (chunkLower.includes("linkedin") && chunkText.length < 50) ||
+            (chunkLower.includes("github") && chunkText.length < 50) ||
+            (chunkText.length < 30 && /^[\w\s]+$/.test(chunkText)); // Short all-text chunks are likely headers
+
+          if (isContactInfo) {
+            return null;
+          }
+
           // For role questions, extract fewer sentences
-          const maxSentences = isRoleQuestion ? 2 : 3;
+          const maxSentences = isRoleQuestion ? 2 : 4; // More sentences for better context
           const sents = extractRelevantSentences(
-            t.chunk.text,
-            tokenize(question),
+            chunkText,
+            questionTokens,
             maxSentences
           );
+
+          // If we have relevant sentences, use them
+          if (sents.length > 0) {
+            const snippet = cleanSnippet(sents.join(" "));
+            // Double-check snippet isn't contact info
+            if (
+              snippet.length > 10 &&
+              !snippet.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) &&
+              !snippet.includes("@")
+            ) {
+              return {
+                title: t.chunk.title,
+                snippet: snippet,
+              };
+            }
+          }
+
+          // Otherwise, prioritize content with question keywords
+          const lines = chunkText.split("\n").filter(Boolean);
+          const relevantLines = lines.filter((line) => {
+            const cleaned = cleanSnippet(line);
+            // Skip contact info lines
+            if (
+              cleaned.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) ||
+              cleaned.includes("@") ||
+              cleaned.toLowerCase().includes("linkedin") ||
+              cleaned.toLowerCase().includes("github") ||
+              cleaned.length < 10
+            ) {
+              return false;
+            }
+            const lineLower = cleaned.toLowerCase();
+            return questionTokens.some((token) =>
+              lineLower.includes(token.toLowerCase())
+            );
+          });
+
+          // Use relevant lines if found, otherwise first few lines (but exclude contact info)
+          const allFilteredLines = lines.filter((line) => {
+            const cleaned = cleanSnippet(line);
+            return (
+              cleaned.length > 15 && // Minimum meaningful length
+              !cleaned.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) && // No phone
+              !cleaned.includes("@") && // No email
+              !cleaned.toLowerCase().includes("linkedin") && // No LinkedIn
+              !cleaned.toLowerCase().includes("github") // No GitHub
+            );
+          });
+
+          const snippetLines =
+            relevantLines.length > 0
+              ? relevantLines.slice(0, isRoleQuestion ? 2 : 3)
+              : allFilteredLines.slice(0, isRoleQuestion ? 2 : 4);
+
+          if (snippetLines.length === 0) {
+            return null;
+          }
+
+          const snippet = cleanSnippet(snippetLines.join(" "));
+          if (snippet.length < 15) {
+            return null;
+          }
+
           return {
             title: t.chunk.title,
-            snippet: sents.length
-              ? sents.join(" ")
-              : t.chunk.text
-                  .split("\n")
-                  .slice(0, isRoleQuestion ? 2 : 3)
-                  .join(" "),
+            snippet: snippet,
           };
         })
-        .filter((s) => s.snippet.trim().length > 0);
+        .filter(
+          (s): s is { title: string; snippet: string } =>
+            s !== null &&
+            s.snippet.trim().length > 15 &&
+            !s.snippet.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) &&
+            !s.snippet.includes("@")
+        );
 
       const uniqueSources = sources.filter(
         (s, idx, arr) =>
@@ -806,16 +1177,47 @@ export async function answerFromResumeRAG(
       );
 
       if (uniqueSources.length > 0) {
-        // For role questions, create a more concise, structured answer
+        // Generate comprehensive answers based on question type
         let answer: string;
         if (isRoleQuestion) {
           answer = generateConciseRoleAnswer(uniqueSources);
+        } else if (isSkillsQuestion) {
+          // Special handling for skills/languages questions
+          answer = generateSkillsAnswer(uniqueSources);
         } else {
-          // For PDF-based corpus, generate answer directly from sources
-          answer = uniqueSources
-            .map((s) => s.snippet)
-            .filter(Boolean)
-            .join("\n\n");
+          // Use generateAnswer for comprehensive, well-formatted responses
+          try {
+            answer = generateAnswer(uniqueSources, resume);
+          } catch {
+            // Fallback: create comprehensive answer from sources
+            const cleanedSnippets = uniqueSources
+              .map((s) => cleanSnippet(s.snippet))
+              .filter(
+                (s) =>
+                  s.length > 20 &&
+                  !s.includes("@") &&
+                  !s.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/)
+              );
+
+            if (cleanedSnippets.length > 0) {
+              // Combine snippets into a comprehensive answer
+              answer = cleanedSnippets
+                .slice(0, 5) // Use up to 5 snippets for comprehensive answers
+                .map((s) => {
+                  // Make each snippet a paragraph - keep more content for comprehensive answers
+                  const words = s.split(/\s+/);
+                  const truncated =
+                    words.length > 80
+                      ? words.slice(0, 80).join(" ") + "..."
+                      : s;
+                  return truncated;
+                })
+                .join("\n\n");
+            } else {
+              answer =
+                "I couldn't find specific information about that topic in the resume.";
+            }
+          }
         }
 
         const suggestedQuestions = generateSuggestedQuestions(resume);
@@ -841,14 +1243,8 @@ export async function answerFromResumeAsync(
     return await answerFromResumeRAG(question, resume);
   } catch (error) {
     console.warn("RAG failed, using TF-IDF fallback:", error);
-    // Build corpus for TF-IDF fallback
-    let corpus: CorpusChunk[];
-    try {
-      const pdfText = await loadPDFText();
-      corpus = buildCorpusFromPDF(pdfText);
-    } catch (pdfError) {
-      corpus = buildCorpus(resume);
-    }
+    // Build corpus from structured resume data
+    const corpus = buildCorpus(resume);
     return await answerFromResumeTFIDF(question, resume, corpus);
   }
 }
@@ -866,22 +1262,16 @@ export function answerFromResume(question: string, resume: Resume): ChatAnswer {
 /**
  * TF-IDF based answer generation (fallback when RAG embeddings unavailable)
  * Pure corpus-based approach - same as RAG but uses keyword matching instead of embeddings
- * Async version that can load PDF
+ * Always uses structured resume data
  */
 async function answerFromResumeTFIDF(
   question: string,
   resume: Resume,
   corpus?: CorpusChunk[]
 ): Promise<ChatAnswer> {
-  // Build corpus if not provided
+  // Build corpus from structured resume data if not provided
   if (!corpus) {
-    try {
-      const pdfText = await loadPDFText();
-      corpus = buildCorpusFromPDF(pdfText);
-    } catch (error) {
-      // Fallback to structured resume data
-      corpus = buildCorpus(resume);
-    }
+    corpus = buildCorpus(resume);
   }
 
   return answerFromResumeTFIDFSync(question, corpus, resume);

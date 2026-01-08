@@ -15,16 +15,16 @@ export async function extractTextFromPDF(pdfUrl: string): Promise<string> {
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
     }
 
-    // Fetch PDF as blob to ensure it works in all environments
+    // Fetch PDF as ArrayBuffer to ensure it works in all environments
     const response = await fetch(pdfUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch PDF: ${response.statusText}`);
     }
-    const blob = await response.blob();
+    const arrayBuffer = await response.arrayBuffer();
 
-    // Load the PDF document from blob
+    // Load the PDF document from ArrayBuffer
     const loadingTask = pdfjsLib.getDocument({
-      data: blob,
+      data: arrayBuffer,
       verbosity: 0, // Suppress warnings
     });
     const pdf = await loadingTask.promise;
@@ -64,16 +64,33 @@ export async function extractTextFromPDF(pdfUrl: string): Promise<string> {
 function cleanExtractedText(text: string): string {
   return (
     text
-      // Normalize whitespace
-      .replace(/\s+/g, " ")
-      // Fix common PDF extraction issues
+      // Remove special characters that cause display issues
+      .replace(/[\u200B-\u200D\uFEFF]/g, "") // Zero-width characters
+      .replace(/[\u0080-\u009F]/g, "") // Control characters
+      // Fix common PDF extraction issues with email
+      .replace(/\s+@\s+/g, "@")
+      .replace(/@\s+/g, "@")
+      // Fix phone numbers
+      .replace(/(\d)\s+-\s+(\d)/g, "$1-$2")
+      // Normalize whitespace within lines
+      .replace(/[^\S\n]+/g, " ")
+      // Fix punctuation spacing
       .replace(/\s*([.,;:!?])\s*/g, "$1 ")
       // Remove excessive line breaks
       .replace(/\n{3,}/g, "\n\n")
-      // Trim lines
+      // Split into lines and clean each
       .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
+      .map((line) => {
+        let cleaned = line.trim();
+        // Remove lines that are just special characters or symbols
+        if (/^[•§#\u2022\u25CF\u2022\s]+$/.test(cleaned)) {
+          return "";
+        }
+        // Fix broken words (likely PDF extraction issues)
+        cleaned = cleaned.replace(/\s+([a-z])\s+([a-z])/gi, " $1$2");
+        return cleaned;
+      })
+      .filter((line) => line.length > 2) // Filter very short lines
       .join("\n")
       .trim()
   );
